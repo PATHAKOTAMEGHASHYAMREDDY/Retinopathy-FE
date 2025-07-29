@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getApiEndpoints } from '../config/api';
 
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -45,7 +46,8 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://ibm-bot.onrender.com/ask', {
+      const endpoints = getApiEndpoints();
+      const response = await fetch(endpoints.chatbot, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

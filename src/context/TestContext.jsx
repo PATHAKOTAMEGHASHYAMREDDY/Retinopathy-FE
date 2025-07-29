@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { getApiEndpoints, createAuthHeaders } from '../config/api';
 
 const TestContext = createContext();
 
@@ -20,10 +21,9 @@ export function TestProvider({ children }) {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/auth/get-tests', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const endpoints = getApiEndpoints();
+      const response = await fetch(endpoints.auth.getTests, {
+        headers: createAuthHeaders(token)
       });
 
       if (response.ok) {
@@ -55,12 +55,10 @@ export function TestProvider({ children }) {
         recommendations: result.recommendations
       };
 
-      const response = await fetch('http://localhost:5000/api/auth/add-test', {
+      const endpoints = getApiEndpoints();
+      const response = await fetch(endpoints.auth.addTest, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: createAuthHeaders(token),
         body: JSON.stringify(testData)
       });
 

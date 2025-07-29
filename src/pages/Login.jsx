@@ -2,6 +2,7 @@ import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { AuthContext } from "../App";
+import { getApiEndpoints } from "../config/api";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -28,8 +29,9 @@ const Login = () => {
     setError("");
 
     try {
+      const endpoints = getApiEndpoints();
       const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
+        endpoints.auth.login,
         formData
       );
 

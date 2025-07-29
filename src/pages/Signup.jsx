@@ -2,6 +2,7 @@ import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { AuthContext } from "../App";
+import { getApiEndpoints } from "../config/api";
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -161,8 +162,9 @@ const Signup = () => {
       }
 
       // API call to backend
+      const endpoints = getApiEndpoints();
       const response = await axios.post(
-        "http://localhost:5000/api/auth/signup",
+        endpoints.auth.signup,
         {
           username: formData.username,
           email: formData.email,

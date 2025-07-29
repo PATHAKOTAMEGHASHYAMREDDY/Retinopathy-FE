@@ -1,12 +1,32 @@
-// Cloudinary configuration
+// Cloudinary configuration - Using environment variables for security
 export const cloudinaryConfig = {
-  cloudName: 'dktvtxucf',
-  apiKey: '269511355577257',
-  apiSecret: 'BIom4jgvtIDq7DkIy2KEpYBxu28'
+  cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+  apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY,
+  apiSecret: import.meta.env.VITE_CLOUDINARY_API_SECRET
+};
+
+// Validate environment variables
+const validateCloudinaryConfig = () => {
+  const missing = [];
+  if (!cloudinaryConfig.cloudName) missing.push('VITE_CLOUDINARY_CLOUD_NAME');
+  if (!cloudinaryConfig.apiKey) missing.push('VITE_CLOUDINARY_API_KEY');
+  if (!cloudinaryConfig.apiSecret) missing.push('VITE_CLOUDINARY_API_SECRET');
+  
+  if (missing.length > 0) {
+    console.error('Missing Cloudinary environment variables:', missing);
+    console.error('Please check your .env file and ensure it contains:');
+    missing.forEach(key => console.error(`${key}=your_value_here`));
+    throw new Error(`Missing Cloudinary configuration: ${missing.join(', ')}`);
+  }
+  
+  console.log('Cloudinary configuration loaded successfully');
 };
 
 // Upload file to Cloudinary with signed upload (more secure)
 export const uploadToCloudinary = async (file, folder = 'scans') => {
+  // Validate configuration before upload
+  validateCloudinaryConfig();
+  
   const timestamp = Math.round(new Date().getTime() / 1000);
   const publicId = `${folder}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
   
@@ -32,6 +52,12 @@ export const uploadToCloudinary = async (file, folder = 'scans') => {
   formData.append('api_key', cloudinaryConfig.apiKey);
 
   try {
+    console.log('Uploading to Cloudinary with config:', {
+      cloudName: cloudinaryConfig.cloudName,
+      publicId: publicId,
+      timestamp: timestamp
+    });
+
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/image/upload`,
       {
@@ -43,10 +69,12 @@ export const uploadToCloudinary = async (file, folder = 'scans') => {
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Cloudinary error response:', errorData);
-      throw new Error(errorData.error?.message || 'Failed to upload to Cloudinary');
+      console.error('Response status:', response.status);
+      throw new Error(errorData.error?.message || `Upload failed with status: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('Image uploaded successfully to Cloudinary:', data.secure_url);
     return data;
   } catch (error) {
     console.error('Cloudinary upload error:', error);

@@ -3,6 +3,7 @@ import { useTest } from "../../context/TestContext";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Chatbot from "../../components/Chatbot";
+import { getApiEndpoints } from "../../config/api";
 
 const Overview = () => {
   const { testCount, testHistory } = useTest();
@@ -29,7 +30,8 @@ const Overview = () => {
         }
 
         // Try to fetch from the existing get-tests endpoint which might have user info
-        const response = await fetch('http://localhost:5000/api/auth/get-tests', {
+        const endpoints = getApiEndpoints();
+        const response = await fetch(endpoints.auth.getTests, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

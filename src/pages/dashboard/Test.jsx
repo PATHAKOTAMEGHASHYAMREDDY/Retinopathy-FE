@@ -6,6 +6,7 @@ import CloudinaryGallery from "../../components/CloudinaryGallery";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { uploadToCloudinary } from '../../config/cloudinary';
+import { getApiEndpoints } from '../../config/api';
 
 const Test = () => {
   const { incrementTestCount, addTestToHistory } = useTest();
@@ -79,7 +80,8 @@ const Test = () => {
       const cloudinaryResult = await uploadToCloudinary(image.file, 'scans');
       console.log('Image uploaded to Cloudinary:', cloudinaryResult.secure_url);
 
-      const response = await fetch("http://localhost:5000/api/analyze", {
+      const endpoints = getApiEndpoints();
+      const response = await fetch(endpoints.analyze, {
         method: "POST",
         body: formData,
       });
