@@ -14,6 +14,7 @@ import Information from "./pages/dashboard/Information";
 import Test from "./pages/dashboard/Test";
 import Metrics from "./pages/dashboard/Metrics";
 import { TestProvider } from "./context/TestContext";
+import { initializeModelPreloader } from "./services/modelPreloader";
 
 
 // Create auth context
@@ -40,6 +41,11 @@ function App() {
       setIsAuthenticated(true);
       setUser(JSON.parse(userData));
     }
+
+    // Initialize model preloader for faster predictions
+    initializeModelPreloader().catch(error => {
+      console.warn('Model preloader initialization failed:', error);
+    });
   }, []);
 
   const login = (userData, token) => {

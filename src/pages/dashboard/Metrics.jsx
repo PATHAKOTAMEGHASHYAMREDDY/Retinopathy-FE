@@ -242,14 +242,14 @@ const Metrics = () => {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-4 sm:space-y-6 md:space-y-8 p-4 sm:p-0">
       <Chatbot />
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
       >
-        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent flex items-center gap-3">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent flex items-center gap-2 sm:gap-3">
           <motion.div
             animate={{
               scale: [1, 1.1, 1],
@@ -260,10 +260,10 @@ const Metrics = () => {
               repeat: Infinity,
               ease: "easeInOut",
             }}
-            className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center"
+            className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center"
           >
             <svg
-              className="w-5 h-5 text-white"
+              className="w-4 h-4 sm:w-5 sm:h-5 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -281,15 +281,15 @@ const Metrics = () => {
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-100 to-blue-100 rounded-full"
+          className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-green-100 to-blue-100 rounded-full w-full sm:w-auto justify-center sm:justify-start"
         >
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-sm font-medium text-gray-700">Live Data</span>
+          <span className="text-xs sm:text-sm font-medium text-gray-700">Live Data</span>
         </motion.div>
       </motion.div>
 
       {/* Statistics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         {statistics.map((stat, index) => (
           <motion.div
             key={stat.label}
@@ -307,7 +307,7 @@ const Metrics = () => {
               boxShadow: "0 25px 50px rgba(0,0,0,0.15)",
               transition: { duration: 0.2 },
             }}
-            className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 cursor-pointer group relative overflow-hidden"
+            className="bg-gradient-to-br from-white to-gray-50 p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 cursor-pointer group relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500"></div>
 
@@ -410,125 +410,129 @@ const Metrics = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-white rounded-xl shadow-sm overflow-hidden"
+        className="bg-white rounded-xl sm:rounded-2xl shadow-sm overflow-hidden"
       >
-        <div className="p-6 border-b flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-gray-800">Recent Tests</h2>
-          <span className="text-sm text-gray-500">
+        <div className="p-4 sm:p-6 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Recent Tests</h2>
+          <span className="text-xs sm:text-sm text-gray-500">
             Total: {testHistory.length} tests
           </span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Result
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Confidence
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {testHistory
-                .slice(0, showAllTests ? testHistory.length : testsToShow)
-                .map((test, index) => (
-                  <motion.tr
-                    key={test._id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + index * 0.05 }}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(test.date).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span
-                        className={`font-medium ${getResultColor(test.result)}`}
+          <div className="min-w-full inline-block align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Result
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Confidence
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {testHistory
+                    .slice(0, showAllTests ? testHistory.length : testsToShow)
+                    .map((test, index) => (
+                      <motion.tr
+                        key={test._id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 + index * 0.05 }}
+                        className="hover:bg-gray-50 transition-colors"
                       >
-                        {test.result}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <span className="font-medium">
-                        {test.confidence.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
-                          test.status
-                        )}`}
-                      >
-                        {test.status.charAt(0).toUpperCase() +
-                          test.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="text-blue-600 hover:text-blue-800 font-medium hover:bg-blue-50 px-3 py-1 rounded-lg transition-all duration-200"
-                        onClick={() => setSelectedTest(test)}
-                      >
-                        View Details
-                      </motion.button>
-                    </td>
-                  </motion.tr>
-                ))}
-              {testHistory.length === 0 && (
-                <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <svg
-                        className="w-12 h-12 text-gray-300"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                        />
-                      </svg>
-                      <div>
-                        <p className="text-gray-500 font-medium">
-                          No test history available yet
-                        </p>
-                        <p className="text-gray-400 text-sm">
-                          Start by analyzing some images in the Test section
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(test.date).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span
+                            className={`font-medium ${getResultColor(test.result)}`}
+                          >
+                            {test.result}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <span className="font-medium">
+                            {test.confidence.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
+                              test.status
+                            )}`}
+                          >
+                            {test.status.charAt(0).toUpperCase() +
+                              test.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="text-blue-600 hover:text-blue-800 font-medium hover:bg-blue-50 px-3 py-1 rounded-lg transition-all duration-200"
+                            onClick={() => setSelectedTest(test)}
+                          >
+                            View Details
+                          </motion.button>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  {testHistory.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-8 text-center">
+                        <div className="flex flex-col items-center gap-3">
+                          <svg
+                            className="w-12 h-12 text-gray-300"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1.5}
+                              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                            />
+                          </svg>
+                          <div>
+                            <p className="text-gray-500 font-medium">
+                              No test history available yet
+                            </p>
+                            <p className="text-gray-400 text-sm">
+                              Start by analyzing some images in the Test section
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         {/* View More Button */}
         {testHistory.length > testsToShow && (
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+          <div className="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-200">
             <div className="flex items-center justify-center">
               <motion.button
                 onClick={() => setShowAllTests(!showAllTests)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium"
+                className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium text-sm sm:text-base w-full sm:w-auto"
               >
                 {showAllTests ? (
                   <>
@@ -583,18 +587,16 @@ const Metrics = () => {
       </motion.div>
 
       {/* Monthly Progress Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Tests Per Month */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white p-6 rounded-xl shadow-sm"
+          className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm"
         >
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">
-            Tests Per Month
-          </h2>
-          <div className="h-64">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Tests Per Month</h2>
+          <div className="h-48 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -618,12 +620,10 @@ const Metrics = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-white p-6 rounded-xl shadow-sm"
+          className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-sm"
         >
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">
-            Accuracy Rate Trend
-          </h2>
-          <div className="h-64">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Accuracy Rate Trend</h2>
+          <div className="h-48 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />

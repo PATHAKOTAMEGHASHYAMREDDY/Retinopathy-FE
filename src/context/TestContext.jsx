@@ -47,18 +47,38 @@ export function TestProvider({ children }) {
       const token = localStorage.getItem('token');
       if (!token) return;
 
+      // Format recommendations based on result
+      const recommendations = result.stage.includes("No DR") ? [
+        "Maintain regular eye check-ups",
+        "Control blood sugar levels",
+        "Monitor blood pressure",
+        "Follow a healthy diet",
+        "Exercise regularly"
+      ] : [
+        "Schedule an appointment with an ophthalmologist",
+        "Strictly control blood sugar levels",
+        "Take prescribed medications regularly",
+        "Monitor blood pressure closely",
+        "Follow dietary restrictions"
+      ];
+
       const testData = {
         date: new Date().toISOString(),
         result: result.stage,
-        confidence: result.confidence,
+        confidence: parseInt(result.confidence),
         status: 'completed',
-        recommendations: result.recommendations
+        recommendations: recommendations,
+        cloudinaryUrl: result.cloudinaryUrl || null,
+        cloudinaryPublicId: result.cloudinaryPublicId || null
       };
 
       const endpoints = getApiEndpoints();
       const response = await fetch(endpoints.auth.addTest, {
         method: 'POST',
-        headers: createAuthHeaders(token),
+        headers: {
+          ...createAuthHeaders(token),
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(testData)
       });
 

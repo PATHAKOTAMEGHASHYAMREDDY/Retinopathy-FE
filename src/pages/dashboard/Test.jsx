@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useTest } from "../../context/TestContext";
 import Chatbot from "../../components/Chatbot";
-import CloudinaryGallery from "../../components/CloudinaryGallery";
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import { uploadToCloudinary } from '../../config/cloudinary';
-import { getApiEndpoints } from '../../config/api';
+
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import { uploadToCloudinary } from "../../config/cloudinary";
+import { getApiEndpoints } from "../../config/api";
+import {
+  ensureModelReady,
+  getModelStatus,
+} from "../../services/modelPreloader";
 
 const Test = () => {
   const { incrementTestCount, addTestToHistory } = useTest();
@@ -14,8 +18,32 @@ const Test = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState(null);
   const [showDownloadPopup, setShowDownloadPopup] = useState(false);
-  const [popupType, setPopupType] = useState('success'); // 'success', 'error', 'warning'
-  const [popupMessage, setPopupMessage] = useState('');
+  const [popupType, setPopupType] = useState("success"); // 'success', 'error', 'warning'
+  const [popupMessage, setPopupMessage] = useState("");
+  const [showAnalysisPopup, setShowAnalysisPopup] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisStage, setAnalysisStage] = useState("");
+  const [currentAnalyzingIndex, setCurrentAnalyzingIndex] = useState(-1);
+  const [modelStatus, setModelStatus] = useState({
+    isReady: false,
+    isWarming: false,
+  });
+
+  // Monitor model status for faster predictions
+  useEffect(() => {
+    const updateModelStatus = () => {
+      const status = getModelStatus();
+      setModelStatus(status);
+    };
+
+    // Update status immediately
+    updateModelStatus();
+
+    // Set up interval to check model status
+    const statusInterval = setInterval(updateModelStatus, 2000);
+
+    return () => clearInterval(statusInterval);
+  }, []);
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
@@ -62,9 +90,50 @@ const Test = () => {
     event.preventDefault();
   };
 
+  const simulateAnalysisProgress = () => {
+    const stages = [
+      { text: "Starting up AI models for retinal analysis", progress: 0 },
+      { text: "Preparing retinal analysis algorithms...", progress: 15 },
+      { text: "Processing image quality and resolution...", progress: 30 },
+      { text: "Detecting retinal features and structures...", progress: 45 },
+      { text: "Analyzing blood vessels and optic disc...", progress: 60 },
+      { text: "Retinopathy detection system starting...", progress: 75 },
+      { text: "Finalizing diagnosis and confidence score...", progress: 90 },
+      { text: "Analysis complete - generating results...", progress: 100 },
+    ];
+
+    let currentStage = 0;
+
+    const updateProgress = () => {
+      if (currentStage < stages.length) {
+        setAnalysisProgress(stages[currentStage].progress);
+        setAnalysisStage(stages[currentStage].text);
+        currentStage++;
+
+        // Vary the timing for more realistic feel
+        const delay =
+          currentStage === 1
+            ? 800
+            : currentStage === stages.length
+            ? 500
+            : Math.random() * 800 + 400;
+
+        setTimeout(updateProgress, delay);
+      }
+    };
+
+    updateProgress();
+  };
+
   const handleAnalyze = async (index) => {
     const image = images[index];
     if (!image || image.isAnalyzing || image.result) return;
+
+    // Show analysis popup and start progress simulation
+    setCurrentAnalyzingIndex(index);
+    setShowAnalysisPopup(true);
+    setAnalysisProgress(0);
+    setAnalysisStage("Initializing retinal analysis...");
 
     setImages((prev) =>
       prev.map((img, i) =>
@@ -72,21 +141,48 @@ const Test = () => {
       )
     );
 
-    const formData = new FormData();
-    formData.append("image", image.file);
-
     try {
-      // First, upload image to Cloudinary
-      const cloudinaryResult = await uploadToCloudinary(image.file, 'scans');
-      console.log('Image uploaded to Cloudinary:', cloudinaryResult.secure_url);
+      // Ensure model is ready for fast prediction
+      console.log("🚀 Ensuring model is ready for fast prediction...");
+      const modelReady = await ensureModelReady();
 
+      if (!modelReady) {
+        throw new Error(
+          "AI model is not ready. Please try again in a few moments."
+        );
+      }
+
+      // Start progress simulation
+      simulateAnalysisProgress();
+
+      const formData = new FormData();
+      formData.append("image", image.file);
+
+      // Parallel execution: Upload to Cloudinary while preparing for analysis
+      const [cloudinaryResult] = await Promise.all([
+        uploadToCloudinary(image.file, "scans"),
+        // Add a small delay to let progress animation start
+        new Promise((resolve) => setTimeout(resolve, 500)),
+      ]);
+
+      console.log(
+        "✅ Image uploaded to Cloudinary:",
+        cloudinaryResult.secure_url
+      );
+
+      // Make the prediction call (should be fast now that model is warmed up)
       const endpoints = getApiEndpoints();
+      const analysisStartTime = performance.now();
+
       const response = await fetch(endpoints.analyze, {
         method: "POST",
         body: formData,
       });
 
       const data = await response.json();
+      const analysisTime = performance.now() - analysisStartTime;
+
+      console.log(`⚡ Analysis completed in ${analysisTime.toFixed(2)}ms`);
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to analyze image");
@@ -96,14 +192,29 @@ const Test = () => {
       const resultWithCloudinary = {
         ...data,
         cloudinaryUrl: cloudinaryResult.secure_url,
-        cloudinaryPublicId: cloudinaryResult.public_id
+        cloudinaryPublicId: cloudinaryResult.public_id,
+        processingTime: analysisTime,
       };
 
-      setImages((prev) =>
-        prev.map((img, i) =>
-          i === index ? { ...img, result: resultWithCloudinary, isAnalyzing: false, cloudinaryUrl: cloudinaryResult.secure_url } : img
-        )
-      );
+      // Wait for progress to complete before showing results
+      setTimeout(() => {
+        setImages((prev) =>
+          prev.map((img, i) =>
+            i === index
+              ? {
+                  ...img,
+                  result: resultWithCloudinary,
+                  isAnalyzing: false,
+                  cloudinaryUrl: cloudinaryResult.secure_url,
+                }
+              : img
+          )
+        );
+
+        // Hide analysis popup
+        setShowAnalysisPopup(false);
+        setCurrentAnalyzingIndex(-1);
+      }, 1000);
 
       // Save image metadata to localStorage for CloudinaryGallery
       const imageData = {
@@ -111,19 +222,26 @@ const Test = () => {
         publicId: cloudinaryResult.public_id,
         uploadedAt: new Date().toISOString(),
         fileName: image.file.name,
-        analysisResult: data.stage
+        analysisResult: data.stage,
       };
-      
-      const existingImages = JSON.parse(localStorage.getItem('cloudinaryImages') || '[]');
+
+      const existingImages = JSON.parse(
+        localStorage.getItem("cloudinaryImages") || "[]"
+      );
       existingImages.push(imageData);
-      localStorage.setItem('cloudinaryImages', JSON.stringify(existingImages));
+      localStorage.setItem("cloudinaryImages", JSON.stringify(existingImages));
 
       // Update metrics and history
       incrementTestCount();
       addTestToHistory(resultWithCloudinary);
-      console.log("Test added to history with Cloudinary URL:", resultWithCloudinary);
+      console.log(
+        "✅ Test added to history with Cloudinary URL:",
+        resultWithCloudinary
+      );
     } catch (err) {
-      console.error('Analysis error:', err);
+      console.error("❌ Analysis error:", err);
+      setShowAnalysisPopup(false);
+      setCurrentAnalyzingIndex(-1);
       setImages((prev) =>
         prev.map((img, i) =>
           i === index ? { ...img, error: err.message, isAnalyzing: false } : img
@@ -137,12 +255,14 @@ const Test = () => {
   };
 
   const generatePDFReport = async () => {
-    const analyzedImages = images.filter(img => img.result);
-    
+    const analyzedImages = images.filter((img) => img.result);
+
     if (analyzedImages.length === 0) {
       // Show error popup instead of alert
-      setPopupType('error');
-      setPopupMessage('No analyzed images to export. Please analyze at least one image first.');
+      setPopupType("error");
+      setPopupMessage(
+        "No analyzed images to export. Please analyze at least one image first."
+      );
       setShowDownloadPopup(true);
       setTimeout(() => {
         setShowDownloadPopup(false);
@@ -159,23 +279,33 @@ const Test = () => {
       // Header
       pdf.setFontSize(20);
       pdf.setTextColor(59, 130, 246); // Blue color
-      pdf.text('Diabetic Retinopathy Analysis Report', pageWidth / 2, yPosition, { align: 'center' });
-      
+      pdf.text(
+        "Diabetic Retinopathy Analysis Report",
+        pageWidth / 2,
+        yPosition,
+        { align: "center" }
+      );
+
       yPosition += 15;
       pdf.setFontSize(12);
       pdf.setTextColor(100, 100, 100);
-      pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPosition, { align: 'center' });
-      
+      pdf.text(
+        `Generated on: ${new Date().toLocaleDateString()}`,
+        pageWidth / 2,
+        yPosition,
+        { align: "center" }
+      );
+
       yPosition += 20;
 
       // User Information (if available from localStorage or context)
-      const userInfo = JSON.parse(localStorage.getItem('user') || '{}');
+      const userInfo = JSON.parse(localStorage.getItem("user") || "{}");
       if (userInfo.name || userInfo.email) {
         pdf.setFontSize(14);
         pdf.setTextColor(0, 0, 0);
-        pdf.text('Patient Information:', 20, yPosition);
+        pdf.text("Patient Information:", 20, yPosition);
         yPosition += 10;
-        
+
         pdf.setFontSize(12);
         if (userInfo.name) {
           pdf.text(`Name: ${userInfo.name}`, 20, yPosition);
@@ -191,7 +321,7 @@ const Test = () => {
       // Process each analyzed image
       for (let i = 0; i < analyzedImages.length; i++) {
         const image = analyzedImages[i];
-        
+
         // Check if we need a new page
         if (yPosition > pageHeight - 100) {
           pdf.addPage();
@@ -206,24 +336,24 @@ const Test = () => {
 
         // Add image to PDF
         try {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
           const img = new Image();
-          
+
           await new Promise((resolve) => {
             img.onload = () => {
               canvas.width = 150;
               canvas.height = 150;
               ctx.drawImage(img, 0, 0, 150, 150);
-              
-              const imgData = canvas.toDataURL('image/jpeg', 0.8);
-              pdf.addImage(imgData, 'JPEG', 20, yPosition, 60, 60);
+
+              const imgData = canvas.toDataURL("image/jpeg", 0.8);
+              pdf.addImage(imgData, "JPEG", 20, yPosition, 60, 60);
               resolve();
             };
             img.src = image.preview;
           });
         } catch (error) {
-          console.error('Error adding image to PDF:', error);
+          console.error("Error adding image to PDF:", error);
         }
 
         // Analysis Results (next to image)
@@ -232,7 +362,7 @@ const Test = () => {
 
         pdf.setFontSize(14);
         pdf.setTextColor(0, 0, 0);
-        pdf.text('Diagnosis:', resultX, resultY);
+        pdf.text("Diagnosis:", resultX, resultY);
         resultY += 8;
 
         pdf.setFontSize(12);
@@ -254,32 +384,34 @@ const Test = () => {
         // Recommendations
         pdf.setFontSize(14);
         pdf.setTextColor(0, 0, 0);
-        pdf.text(isNoDR ? 'Recommendations:' : 'Precautions:', 20, yPosition);
+        pdf.text(isNoDR ? "Recommendations:" : "Precautions:", 20, yPosition);
         yPosition += 10;
 
-        const recommendations = isNoDR ? [
-          "Maintain strict blood sugar control",
-          "Monitor HbA1c levels regularly",
-          "Have a dilated eye exam every 12 months",
-          "Control blood pressure and keep it below 130/80 mmHg",
-          "Maintain healthy cholesterol levels",
-          "Eat a balanced and nutritious diet",
-          "Exercise regularly",
-          "Avoid smoking",
-          "Limit alcohol consumption",
-          "Take diabetes medications as prescribed"
-        ] : [
-          "Control blood sugar levels",
-          "Aim for an HbA1c level below 7%",
-          "Manage blood pressure and keep it below 130/80 mmHg",
-          "Control cholesterol levels to protect retinal blood vessels",
-          "Get a comprehensive dilated eye exam at least once a year",
-          "Eat a healthy, balanced diet",
-          "Exercise regularly to improve overall health",
-          "Avoid smoking completely",
-          "Limit alcohol consumption",
-          "Take diabetes medications exactly as prescribed by your doctor"
-        ];
+        const recommendations = isNoDR
+          ? [
+              "Maintain strict blood sugar control",
+              "Monitor HbA1c levels regularly",
+              "Have a dilated eye exam every 12 months",
+              "Control blood pressure and keep it below 130/80 mmHg",
+              "Maintain healthy cholesterol levels",
+              "Eat a balanced and nutritious diet",
+              "Exercise regularly",
+              "Avoid smoking",
+              "Limit alcohol consumption",
+              "Take diabetes medications as prescribed",
+            ]
+          : [
+              "Control blood sugar levels",
+              "Aim for an HbA1c level below 7%",
+              "Manage blood pressure and keep it below 130/80 mmHg",
+              "Control cholesterol levels to protect retinal blood vessels",
+              "Get a comprehensive dilated eye exam at least once a year",
+              "Eat a healthy, balanced diet",
+              "Exercise regularly to improve overall health",
+              "Avoid smoking completely",
+              "Limit alcohol consumption",
+              "Take diabetes medications exactly as prescribed by your doctor",
+            ];
 
         pdf.setFontSize(10);
         recommendations.forEach((rec, index) => {
@@ -298,15 +430,16 @@ const Test = () => {
             pdf.addPage();
             yPosition = 20;
           }
-          
+
           pdf.setFontSize(12);
           pdf.setTextColor(239, 68, 68);
-          pdf.text('⚠ IMPORTANT NOTICE:', 20, yPosition);
+          pdf.text("⚠ IMPORTANT NOTICE:", 20, yPosition);
           yPosition += 8;
-          
+
           pdf.setFontSize(10);
           pdf.setTextColor(0, 0, 0);
-          const notice = 'Please consult with an ophthalmologist immediately for proper diagnosis and treatment plan.';
+          const notice =
+            "Please consult with an ophthalmologist immediately for proper diagnosis and treatment plan.";
           const noticeLines = pdf.splitTextToSize(notice, pageWidth - 40);
           pdf.text(noticeLines, 20, yPosition);
           yPosition += noticeLines.length * 6;
@@ -321,104 +454,329 @@ const Test = () => {
         pdf.setPage(i);
         pdf.setFontSize(8);
         pdf.setTextColor(100, 100, 100);
-        pdf.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-        pdf.text('Generated by Diabetic Retinopathy Detection System', pageWidth / 2, pageHeight - 5, { align: 'center' });
+        pdf.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, {
+          align: "center",
+        });
+        pdf.text(
+          "Generated by Diabetic Retinopathy Detection System",
+          pageWidth / 2,
+          pageHeight - 5,
+          { align: "center" }
+        );
       }
 
       // Save the PDF locally only
-      const fileName = `Retinopathy_Report_${new Date().toISOString().split('T')[0]}`;
-      
+      const fileName = `Retinopathy_Report_${
+        new Date().toISOString().split("T")[0]
+      }`;
+
       // Save locally
       pdf.save(`${fileName}.pdf`);
-      
+
       // Show success popup
       setShowDownloadPopup(true);
-      
+
       // Auto-hide popup after 4 seconds
       setTimeout(() => {
         setShowDownloadPopup(false);
       }, 4000);
-      
+
       // Store report metadata locally for tracking
       const reportData = {
         fileName: `${fileName}.pdf`,
         generatedAt: new Date().toISOString(),
         analysisCount: analyzedImages.length,
-        localOnly: true
+        localOnly: true,
       };
-      
-      const existingReports = JSON.parse(localStorage.getItem('pdfReports') || '[]');
-      existingReports.push(reportData);
-      localStorage.setItem('pdfReports', JSON.stringify(existingReports));
 
+      const existingReports = JSON.parse(
+        localStorage.getItem("pdfReports") || "[]"
+      );
+      existingReports.push(reportData);
+      localStorage.setItem("pdfReports", JSON.stringify(existingReports));
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Error generating PDF report. Please try again.');
+      console.error("Error generating PDF:", error);
+      alert("Error generating PDF report. Please try again.");
     }
   };
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="min-h-screen bg-gray-50 space-y-4 sm:space-y-6 lg:space-y-8 p-2 sm:p-4 lg:p-6">
       <Chatbot />
-      
-      {/* Download Success Popup */}
+
+      {/* Download Success Popup - Mobile Responsive */}
       {showDownloadPopup && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8, y: -50 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: -50 }}
-          className="fixed top-4 right-4 z-50 bg-gradient-to-r from-green-500 to-emerald-500 text-white p-6 rounded-2xl shadow-2xl border border-green-400 max-w-sm"
+          className="fixed top-2 left-2 right-2 sm:top-4 sm:left-auto sm:right-4 z-50 bg-gradient-to-r from-green-500 to-emerald-500 text-white p-4 sm:p-6 rounded-2xl shadow-2xl border border-green-400 max-w-sm sm:max-w-md mx-auto sm:mx-0"
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <motion.div
               animate={{ rotate: [0, 360] }}
               transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0"
+              className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0"
             >
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="w-5 h-5 sm:w-6 sm:h-6 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             </motion.div>
-            <div className="flex-1">
-              <h3 className="font-bold text-lg mb-1">Report Generated!</h3>
-              <p className="text-green-100 text-sm">PDF downloaded to your device successfully.</p>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-base sm:text-lg mb-1 truncate">
+                Report Generated!
+              </h3>
+              <p className="text-green-100 text-xs sm:text-sm">
+                PDF downloaded to your device successfully.
+              </p>
             </div>
             <motion.button
               onClick={() => setShowDownloadPopup(false)}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-all"
+              className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-all flex-shrink-0"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-4 h-4 sm:w-5 sm:h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </motion.button>
           </div>
-          
+
           {/* Progress bar animation */}
           <motion.div
             initial={{ width: "0%" }}
             animate={{ width: "100%" }}
             transition={{ duration: 4, ease: "linear" }}
-            className="mt-4 h-1 bg-white/30 rounded-full overflow-hidden"
+            className="mt-3 sm:mt-4 h-1 bg-white/30 rounded-full overflow-hidden"
           >
             <div className="h-full bg-white/60 rounded-full"></div>
           </motion.div>
         </motion.div>
       )}
+
+      {/* Analysis Progress Popup - Beautiful Animation */}
+      {showAnalysisPopup && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 50 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 50 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4 border border-gray-100"
+          >
+            {/* Header with Eye Icon */}
+            <div className="text-center mb-6">
+              <motion.div
+                animate={{
+                  rotate: [0, 360],
+                  scale: [1, 1.1, 1],
+                }}
+                transition={{
+                  rotate: { duration: 3, repeat: Infinity, ease: "linear" },
+                  scale: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+                }}
+                className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              >
+                <svg
+                  className="w-8 h-8 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+              </motion.div>
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Preparing Retinal Analysis
+              </h2>
+              <p className="text-gray-500 mt-2">
+                Starting up AI models for retinal analysis
+              </p>
+            </div>
+
+            {/* Current Stage with Loading Icon */}
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-3">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="w-6 h-6 border-2 border-blue-200 border-t-blue-600 rounded-full"
+                />
+                <span className="text-gray-700 font-medium text-sm sm:text-base">
+                  {analysisStage}
+                </span>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-600">
+                  Progress
+                </span>
+                <span className="text-sm font-bold text-blue-600">
+                  {analysisProgress}% complete
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <motion.div
+                  initial={{ width: "0%" }}
+                  animate={{ width: `${analysisProgress}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full relative overflow-hidden"
+                >
+                  {/* Shimmer effect */}
+                  <motion.div
+                    animate={{ x: ["-100%", "100%"] }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                  />
+                </motion.div>
+              </div>
+            </div>
+
+            {/* Status Messages */}
+            <div className="space-y-2 mb-6">
+              {analysisProgress >= 15 && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center gap-2 text-sm text-green-600"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Image preprocessing completed
+                </motion.div>
+              )}
+              {analysisProgress >= 45 && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="flex items-center gap-2 text-sm text-green-600"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Retinal features detected
+                </motion.div>
+              )}
+              {analysisProgress >= 75 && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="flex items-center gap-2 text-sm text-orange-600"
+                >
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 0.5, repeat: Infinity }}
+                  >
+                    ⚡
+                  </motion.div>
+                  Retinopathy detection system starting...
+                </motion.div>
+              )}
+            </div>
+
+            {/* Cancel Button */}
+            <motion.button
+              onClick={() => {
+                setShowAnalysisPopup(false);
+                setCurrentAnalyzingIndex(-1);
+                // Reset the analyzing state for the current image
+                if (currentAnalyzingIndex >= 0) {
+                  setImages((prev) =>
+                    prev.map((img, i) =>
+                      i === currentAnalyzingIndex
+                        ? { ...img, isAnalyzing: false }
+                        : img
+                    )
+                  );
+                }
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-all duration-200 border border-gray-200"
+            >
+              Cancel
+            </motion.button>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Header Section - Clean Design */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        className="flex items-center justify-between bg-white p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-100"
       >
-        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent flex items-center gap-3">
+        {/* Left Side - Title with Icon */}
+        <div className="flex items-center gap-3">
           <motion.div
             animate={{ rotate: [0, 360] }}
             transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-            className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg flex items-center justify-center"
+            className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0"
           >
             <svg
-              className="w-5 h-5 text-white"
+              className="w-5 h-5 sm:w-6 sm:h-6 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -431,28 +789,63 @@ const Test = () => {
               />
             </svg>
           </motion.div>
-          Retinal Image Analysis
-        </h1>
-        <div className="flex flex-col sm:flex-row gap-3">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+            Retinal Image Analysis
+          </h1>
+        </div>
+
+        {/* Right Side - Status and Export Button */}
+        <div className="flex items-center gap-3">
+          {/* AI Status Indicator */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-100 to-green-100 rounded-full"
+            className={`flex items-center gap-2 px-3 py-2 rounded-full transition-all duration-300 ${
+              modelStatus.isReady
+                ? "bg-gradient-to-r from-green-100 to-emerald-100 border border-green-200"
+                : modelStatus.isWarming
+                ? "bg-gradient-to-r from-yellow-100 to-orange-100 border border-yellow-200"
+                : "bg-gradient-to-r from-gray-100 to-gray-200 border border-gray-200"
+            }`}
           >
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-gray-700">AI Ready</span>
+            <div
+              className={`w-2 h-2 rounded-full ${
+                modelStatus.isReady
+                  ? "bg-green-500 animate-pulse"
+                  : modelStatus.isWarming
+                  ? "bg-yellow-500 animate-spin"
+                  : "bg-gray-400"
+              }`}
+            ></div>
+            <span
+              className={`text-xs sm:text-sm font-medium ${
+                modelStatus.isReady
+                  ? "text-green-700"
+                  : modelStatus.isWarming
+                  ? "text-yellow-700"
+                  : "text-gray-600"
+              }`}
+            >
+              {modelStatus.isReady
+                ? "AI Ready"
+                : modelStatus.isWarming
+                ? "AI Loading..."
+                : "AI Initializing"}
+            </span>
           </motion.div>
+
+          {/* Export Report Button */}
           <motion.button
             onClick={generatePDFReport}
             whileHover={{
               scale: 1.05,
-              boxShadow: "0 10px 25px rgba(59, 130, 246, 0.3)",
+              boxShadow: "0 8px 20px rgba(99, 102, 241, 0.3)",
             }}
             whileTap={{ scale: 0.95 }}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium flex items-center gap-2"
+            className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium flex items-center gap-2 text-sm"
           >
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -469,19 +862,19 @@ const Test = () => {
         </div>
       </motion.div>
 
-      {/* Upload Section */}
+      {/* Upload Section - Mobile Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-gradient-to-br from-white to-gray-50 p-6 sm:p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100"
+        className="bg-gradient-to-br from-white to-gray-50 p-4 sm:p-6 lg:p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100"
       >
         {/* Image Upload Area */}
         <motion.div
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           whileHover={{ scale: 1.02 }}
-          className="border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center border-gray-300 hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-300 mb-8 group cursor-pointer"
+          className="border-2 border-dashed rounded-2xl p-6 sm:p-8 lg:p-12 text-center border-gray-300 hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-300 mb-6 sm:mb-8 group cursor-pointer"
         >
           <motion.div
             animate={{
@@ -495,7 +888,7 @@ const Test = () => {
             }}
           >
             <svg
-              className="mx-auto h-16 w-16 text-gray-400 group-hover:text-blue-500 transition-colors"
+              className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-gray-400 group-hover:text-blue-500 transition-colors"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -512,7 +905,7 @@ const Test = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="mt-6 text-base sm:text-lg text-gray-600 group-hover:text-gray-800 transition-colors font-medium"
+            className="mt-4 sm:mt-6 text-sm sm:text-base lg:text-lg text-gray-600 group-hover:text-gray-800 transition-colors font-medium"
           >
             Drag and drop your retinal image here, or click to select
           </motion.p>
@@ -520,7 +913,7 @@ const Test = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="mt-2 text-sm text-gray-500"
+            className="mt-2 text-xs sm:text-sm text-gray-500"
           >
             Supports JPG, PNG formats • Max size: 10MB
           </motion.p>
@@ -538,10 +931,10 @@ const Test = () => {
               boxShadow: "0 10px 25px rgba(59, 130, 246, 0.3)",
             }}
             whileTap={{ scale: 0.95 }}
-            className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer font-medium"
+            className="mt-4 sm:mt-6 inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl cursor-pointer font-medium text-sm sm:text-base"
           >
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4 sm:w-5 sm:h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -557,8 +950,8 @@ const Test = () => {
           </motion.label>
         </motion.div>
 
-        {/* Images List */}
-        <div className="space-y-6">
+        {/* Images List - Mobile Responsive */}
+        <div className="space-y-4 sm:space-y-6">
           {images.map((image, index) => (
             <motion.div
               key={index}
@@ -571,24 +964,26 @@ const Test = () => {
                 damping: 15,
               }}
               whileHover={{ scale: 1.02, y: -5 }}
-              className="p-6 border border-gray-200 rounded-2xl bg-gradient-to-br from-white to-gray-50 shadow-lg hover:shadow-xl transition-all duration-300 group"
+              className="p-4 sm:p-6 border border-gray-200 rounded-2xl bg-gradient-to-br from-white to-gray-50 shadow-lg hover:shadow-xl transition-all duration-300 group"
             >
-              <div className="flex flex-col lg:flex-row items-start gap-6">
+              <div className="flex flex-col gap-4 sm:gap-6">
+                {/* Image Preview - Mobile Responsive */}
                 <motion.div
                   whileHover={{ scale: 1.05 }}
-                  className="relative overflow-hidden rounded-xl shadow-md group-hover:shadow-lg transition-shadow"
+                  className="relative overflow-hidden rounded-xl shadow-md group-hover:shadow-lg transition-shadow mx-auto"
                 >
                   <img
                     src={image.preview}
                     alt={`Preview ${index + 1}`}
-                    className="w-full lg:w-48 h-48 object-cover"
+                    className="w-full max-w-sm sm:max-w-md h-48 sm:h-64 object-cover mx-auto"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 </motion.div>
 
+                {/* Image Details */}
                 <div className="flex-1 w-full">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
                       <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
                         {index + 1}
                       </div>
@@ -598,7 +993,7 @@ const Test = () => {
                       onClick={() => handleRemoveImage(index)}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                      className="flex items-center gap-2 px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200 font-medium"
+                      className="flex items-center gap-2 px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200 font-medium text-sm"
                     >
                       <svg
                         className="w-4 h-4"
@@ -617,11 +1012,12 @@ const Test = () => {
                     </motion.button>
                   </div>
 
+                  {/* Error Display */}
                   {image.error && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="mb-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-3"
+                      className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-3"
                     >
                       <svg
                         className="w-5 h-5 text-red-500 flex-shrink-0"
@@ -636,10 +1032,13 @@ const Test = () => {
                           d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                       </svg>
-                      <span className="font-medium">{image.error}</span>
+                      <span className="font-medium text-sm sm:text-base">
+                        {image.error}
+                      </span>
                     </motion.div>
                   )}
 
+                  {/* Analyze Button */}
                   {!image.result && !image.isAnalyzing && (
                     <motion.button
                       onClick={() => handleAnalyze(index)}
@@ -648,7 +1047,7 @@ const Test = () => {
                         boxShadow: "0 10px 25px rgba(34, 197, 94, 0.3)",
                       }}
                       whileTap={{ scale: 0.95 }}
-                      className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium"
+                      className="w-full sm:w-auto flex items-center justify-center gap-3 px-4 sm:px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium text-sm sm:text-base"
                     >
                       <svg
                         className="w-5 h-5"
@@ -667,6 +1066,7 @@ const Test = () => {
                     </motion.button>
                   )}
 
+                  {/* Analyzing State */}
                   {image.isAnalyzing && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
@@ -674,26 +1074,28 @@ const Test = () => {
                       className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200"
                     >
                       <div className="relative">
-                        <div className="w-8 h-8 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                        <div className="absolute inset-0 w-8 h-8 border-3 border-transparent border-r-blue-400 rounded-full animate-ping"></div>
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                        <div className="absolute inset-0 w-6 h-6 sm:w-8 sm:h-8 border-3 border-transparent border-r-blue-400 rounded-full animate-ping"></div>
                       </div>
                       <div>
-                        <span className="text-blue-700 font-semibold text-lg">
+                        <span className="text-blue-700 font-semibold text-base sm:text-lg">
                           Analyzing Image...
                         </span>
-                        <p className="text-blue-600 text-sm">
+                        <p className="text-blue-600 text-xs sm:text-sm">
                           AI is processing your retinal scan
                         </p>
                       </div>
                     </motion.div>
                   )}
 
+                  {/* Analysis Results */}
                   {image.result && (
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="space-y-4"
                     >
+                      {/* Diagnosis Result */}
                       <div
                         className={`p-4 rounded-xl border-2 ${
                           image.result.stage.includes("No DR")
@@ -702,52 +1104,57 @@ const Test = () => {
                         }`}
                       >
                         <div
-                          className={`text-xl font-bold flex items-center gap-3 ${
+                          className={`text-lg sm:text-xl font-bold flex flex-col sm:flex-row sm:items-center gap-3 ${
                             image.result.stage.includes("No DR")
                               ? "text-green-700"
                               : "text-red-700"
                           }`}
                         >
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              image.result.stage.includes("No DR")
-                                ? "bg-green-500"
-                                : "bg-red-500"
-                            }`}
-                          >
-                            <svg
-                              className="w-5 h-5 text-white"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                image.result.stage.includes("No DR")
+                                  ? "bg-green-500"
+                                  : "bg-red-500"
+                              }`}
                             >
-                              {image.result.stage.includes("No DR") ? (
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M5 13l4 4L19 7"
-                                />
-                              ) : (
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                              )}
-                            </svg>
+                              <svg
+                                className="w-5 h-5 text-white"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                {image.result.stage.includes("No DR") ? (
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                ) : (
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  />
+                                )}
+                              </svg>
+                            </div>
+                            <span className="break-words">
+                              {image.result.stage}
+                            </span>
                           </div>
-                          {image.result.stage}
-                          <span className="text-sm font-medium px-3 py-1 bg-white/70 rounded-full">
+                          <span className="text-xs sm:text-sm font-medium px-3 py-1 bg-white/70 rounded-full w-fit">
                             {image.result.confidence}% confidence
                           </span>
                         </div>
                       </div>
 
+                      {/* Recommendations/Precautions */}
                       <div className="bg-white p-4 rounded-xl border border-gray-200">
                         <h4
-                          className={`font-semibold mb-3 flex items-center gap-2 ${
+                          className={`font-semibold mb-3 flex items-center gap-2 text-base sm:text-lg ${
                             image.result.stage.includes("No DR")
                               ? "text-green-800"
                               : "text-red-800"
@@ -859,7 +1266,7 @@ const Test = () => {
                                   </svg>
                                 </div>
                                 <span
-                                  className={`font-medium leading-relaxed ${
+                                  className={`font-medium leading-relaxed text-sm sm:text-base ${
                                     image.result.stage.includes("No DR")
                                       ? "text-green-800"
                                       : "text-red-800"
@@ -880,8 +1287,8 @@ const Test = () => {
                             transition={{ delay: 0.5 }}
                             className="mt-4 p-4 bg-gradient-to-r from-red-100 to-pink-100 border border-red-200 rounded-xl"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
                                 <svg
                                   className="w-5 h-5 text-white"
                                   fill="none"
@@ -897,10 +1304,10 @@ const Test = () => {
                                 </svg>
                               </div>
                               <div>
-                                <h5 className="font-bold text-red-800">
+                                <h5 className="font-bold text-red-800 text-sm sm:text-base">
                                   Important Notice
                                 </h5>
-                                <p className="text-red-700 text-sm">
+                                <p className="text-red-700 text-xs sm:text-sm">
                                   Please consult with an ophthalmologist
                                   immediately for proper diagnosis and treatment
                                   plan.
@@ -918,8 +1325,8 @@ const Test = () => {
                             transition={{ delay: 0.5 }}
                             className="mt-4 p-4 bg-gradient-to-r from-green-100 to-emerald-100 border border-green-200 rounded-xl"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
                                 <svg
                                   className="w-5 h-5 text-white"
                                   fill="none"
@@ -935,10 +1342,10 @@ const Test = () => {
                                 </svg>
                               </div>
                               <div>
-                                <h5 className="font-bold text-green-800">
+                                <h5 className="font-bold text-green-800 text-sm sm:text-base">
                                   Great News!
                                 </h5>
-                                <p className="text-green-700 text-sm">
+                                <p className="text-green-700 text-xs sm:text-sm">
                                   No signs of diabetic retinopathy detected.
                                   Continue following these recommendations to
                                   maintain eye health.
@@ -957,17 +1364,17 @@ const Test = () => {
         </div>
       </motion.div>
 
-      {/* Guidelines */}
+      {/* Guidelines Section - Mobile Responsive */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-gradient-to-br from-white to-blue-50 p-6 sm:p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-blue-100"
+        className="bg-gradient-to-br from-white to-blue-50 p-4 sm:p-6 lg:p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-blue-100"
       >
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center">
             <svg
-              className="w-6 h-6 text-white"
+              className="w-5 h-5 sm:w-6 sm:h-6 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -980,12 +1387,12 @@ const Test = () => {
               />
             </svg>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800">
             Image Guidelines
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {[
             {
               text: "Use clear, high-resolution retinal images",
@@ -1023,11 +1430,11 @@ const Test = () => {
                 x: 5,
                 transition: { duration: 0.2 },
               }}
-              className="flex items-start gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 group cursor-pointer"
+              className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 group cursor-pointer"
             >
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:from-blue-500 group-hover:to-indigo-500 transition-all">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:from-blue-500 group-hover:to-indigo-500 transition-all">
                 <svg
-                  className="w-5 h-5 text-white"
+                  className="w-4 h-4 sm:w-5 sm:h-5 text-white"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1040,7 +1447,7 @@ const Test = () => {
                   />
                 </svg>
               </div>
-              <span className="text-gray-700 font-medium group-hover:text-gray-900 transition-colors leading-relaxed">
+              <span className="text-gray-700 font-medium group-hover:text-gray-900 transition-colors leading-relaxed text-sm sm:text-base">
                 {guideline.text}
               </span>
             </motion.div>
@@ -1051,11 +1458,11 @@ const Test = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
-          className="mt-6 p-4 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-xl border border-blue-200"
+          className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-xl border border-blue-200"
         >
           <div className="flex items-center gap-2 text-blue-700">
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4 sm:w-5 sm:h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -1067,22 +1474,13 @@ const Test = () => {
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span className="font-semibold">Pro Tip:</span>
+            <span className="font-semibold text-sm sm:text-base">Pro Tip:</span>
           </div>
-          <p className="text-blue-600 text-sm mt-1">
+          <p className="text-blue-600 text-xs sm:text-sm mt-1">
             For best results, use fundus camera images or high-quality
             smartphone photos with proper retinal illumination.
           </p>
         </motion.div>
-      </motion.div>
-
-      {/* Cloudinary Gallery - Show saved files */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
-        <CloudinaryGallery />
       </motion.div>
     </div>
   );

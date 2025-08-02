@@ -1,11 +1,11 @@
 import { useState, useContext } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AuthContext } from '../App';
 import GoogleTranslate from './GoogleTranslate';
 
 const DashboardLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useContext(AuthContext);
@@ -43,59 +43,184 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <motion.div
-        initial={{ x: -300 }}
-        animate={{ x: 0 }}
-        className={`${
-          isSidebarOpen ? 'w-64' : 'w-20'
-        } bg-white shadow-lg transition-all duration-300 ease-in-out flex flex-col`}
-      >
-        <div className="p-4">
-          {/* Add Google Translate at the top */}
-          {isSidebarOpen && <div className="mb-4"><GoogleTranslate /></div>}
-          <div className="flex items-center justify-between">
-            {isSidebarOpen && (
-              <motion.h2
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-xl font-bold text-gray-800"
-              >
-                RetinoAI
-              </motion.h2>
-            )}
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <svg
-                className="w-6 h-6 text-gray-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white shadow-sm z-20 px-4 py-3 flex items-center justify-between">
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+        >
+          <svg
+            className="w-6 h-6 text-gray-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
+        <h1 className="text-xl font-bold text-gray-800">RetinoAI</h1>
+        <div className="w-8"></div> {/* Spacer for alignment */}
+      </div>
 
-        <nav className="mt-8 flex-1">
-          {sidebarItems.map((item) => (
-            <Link
-              key={item.id}
-              to={item.path}
-              className={`w-full flex items-center p-4 transition-colors ${
-                location.pathname === item.path
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
+      {/* Mobile Navigation Drawer */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="fixed inset-0 bg-black z-30 lg:hidden"
+            />
+
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'tween', duration: 0.3 }}
+              className="fixed inset-y-0 left-0 w-64 bg-white shadow-xl z-40 lg:hidden"
+            >
+              <div className="flex flex-col h-full">
+                <div className="p-4 border-b">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-gray-800">RetinoAI</h2>
+                    <button
+                      onClick={() => setIsSidebarOpen(false)}
+                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <svg
+                        className="w-6 h-6 text-gray-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="mt-4">
+                    <GoogleTranslate />
+                  </div>
+                </div>
+
+                <nav className="flex-1 overflow-y-auto py-4">
+                  {sidebarItems.map((item) => (
+                    <Link
+                      key={item.id}
+                      to={item.path}
+                      onClick={() => setIsSidebarOpen(false)}
+                      className={`flex items-center px-6 py-3 transition-colors ${
+                        location.pathname === item.path
+                          ? 'bg-blue-50 text-blue-600'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d={item.icon}
+                        />
+                      </svg>
+                      <span className="ml-4 font-medium">{item.label}</span>
+                    </Link>
+                  ))}
+                </nav>
+
+                <div className="p-4 border-t">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center px-6 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                    <span className="ml-4 font-medium">Logout</span>
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:flex h-screen">
+        <motion.div
+          initial={{ x: -300 }}
+          animate={{ x: 0 }}
+          className="w-64 bg-white shadow-lg flex flex-col"
+        >
+          <div className="p-4">
+            <div className="mb-4">
+              <GoogleTranslate />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800">RetinoAI</h2>
+          </div>
+
+          <nav className="flex-1 py-4">
+            {sidebarItems.map((item) => (
+              <Link
+                key={item.id}
+                to={item.path}
+                className={`flex items-center px-6 py-3 transition-colors ${
+                  location.pathname === item.path
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d={item.icon}
+                  />
+                </svg>
+                <span className="ml-4 font-medium">{item.label}</span>
+              </Link>
+            ))}
+          </nav>
+
+          <div className="p-4 border-t">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center px-6 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             >
               <svg
                 className="w-6 h-6"
@@ -107,43 +232,25 @@ const DashboardLayout = () => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d={item.icon}
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                 />
               </svg>
-              {isSidebarOpen && (
-                <span className="ml-4 font-medium">{item.label}</span>
-              )}
-            </Link>
-          ))}
-        </nav>
+              <span className="ml-4 font-medium">Logout</span>
+            </button>
+          </div>
+        </motion.div>
 
-        {/* Logout Button */}
-        <div className="p-4 border-t">
-          <button
-            onClick={handleLogout}
-            className={`w-full flex items-center p-4 text-red-600 hover:bg-red-50 rounded-lg transition-colors`}
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-            {isSidebarOpen && <span className="ml-4 font-medium">Logout</span>}
-          </button>
+        {/* Main Content */}
+        <div className="flex-1 overflow-auto">
+          <div className="container mx-auto p-6">
+            <Outlet />
+          </div>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-8">
+      {/* Mobile Content */}
+      <div className="lg:hidden pt-16">
+        <div className="container mx-auto p-4">
           <Outlet />
         </div>
       </div>

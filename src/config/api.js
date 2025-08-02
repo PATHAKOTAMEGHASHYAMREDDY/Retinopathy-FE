@@ -1,12 +1,12 @@
 // API Configuration - Using environment variables for security and flexibility
 export const apiConfig = {
   // Backend API URLs
-  baseUrl: import.meta.env.VITE_API_BASE_URL,
-  authUrl: import.meta.env.VITE_AUTH_API_URL,
-  analyzeUrl: import.meta.env.VITE_ANALYZE_API_URL,
+  baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
+  authUrl: import.meta.env.VITE_AUTH_API_URL || 'http://localhost:5000/api/auth',
+  analyzeUrl: import.meta.env.VITE_ANALYZE_API_URL || 'http://localhost:5000/api/analyze',
 
   // External APIs
-  chatbotUrl: import.meta.env.VITE_CHATBOT_API_URL,
+  chatbotUrl: import.meta.env.VITE_CHATBOT_API_URL || 'https://ibm-bot.onrender.com/ask',
 };
 
 // Validate API configuration
@@ -24,12 +24,7 @@ const validateApiConfig = () => {
     throw new Error(`Missing API configuration: ${missing.join(", ")}`);
   }
 
-  console.log("API configuration loaded successfully:", {
-    baseUrl: apiConfig.baseUrl,
-    authUrl: apiConfig.authUrl,
-    analyzeUrl: apiConfig.analyzeUrl,
-    chatbotUrl: apiConfig.chatbotUrl,
-  });
+  return true;
 };
 
 // API endpoints with validation
@@ -46,6 +41,8 @@ export const getApiEndpoints = () => {
 
     // Analysis endpoints
     analyze: apiConfig.analyzeUrl,
+    warmup: `${apiConfig.baseUrl}/api/warmup`,
+    modelStatus: `${apiConfig.baseUrl}/api/model-status`,
 
     // External APIs
     chatbot: apiConfig.chatbotUrl,
@@ -54,7 +51,6 @@ export const getApiEndpoints = () => {
 
 // Helper function to create headers with auth token
 export const createAuthHeaders = (token) => ({
-  "Content-Type": "application/json",
   Authorization: `Bearer ${token}`,
 });
 

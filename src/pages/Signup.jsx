@@ -163,15 +163,12 @@ const Signup = () => {
 
       // API call to backend
       const endpoints = getApiEndpoints();
-      const response = await axios.post(
-        endpoints.auth.signup,
-        {
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          age: parseInt(formData.age),
-        }
-      );
+      const response = await axios.post(endpoints.auth.signup, {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        age: parseInt(formData.age),
+      });
 
       setSuccess("Account created successfully! Redirecting to login...");
       setTimeout(() => {
@@ -196,13 +193,19 @@ const Signup = () => {
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-r from-blue-400/20 to-green-400/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-r from-green-400/20 to-blue-400/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-spin" style={{animationDuration: '20s'}}></div>
+        <div
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-spin"
+          style={{ animationDuration: "20s" }}
+        ></div>
       </div>
-      
+
       <div className="max-w-md w-full space-y-8 relative z-10">
         {/* Header */}
         <div className="text-center animate-fade-in-up">
-          <Link to="/" className="inline-flex items-center space-x-3 mb-8 group hover:scale-105 transition-all duration-300">
+          <Link
+            to="/"
+            className="inline-flex items-center space-x-3 mb-8 group hover:scale-105 transition-all duration-300"
+          >
             <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg flex items-center justify-center shadow-lg group-hover:shadow-xl group-hover:rotate-3 transition-all duration-300">
               <svg
                 className="w-7 h-7 text-white group-hover:scale-110 transition-transform duration-300"
@@ -225,8 +228,12 @@ const Signup = () => {
               </svg>
             </div>
             <div className="text-left">
-              <h1 className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">RetinoAI</h1>
-              <p className="text-sm text-gray-600 group-hover:text-green-600 transition-colors duration-300">CapsNet-Powered Detection</p>
+              <h1 className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">
+                RetinoAI
+              </h1>
+              <p className="text-sm text-gray-600 group-hover:text-green-600 transition-colors duration-300">
+                CapsNet-Powered Detection
+              </p>
             </div>
           </Link>
 
@@ -393,13 +400,38 @@ const Signup = () => {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                      />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
                     </svg>
                   )}
                 </button>

@@ -109,14 +109,14 @@ const Overview = () => {
   ];
 
   return (
-    <div>
+    <div className="p-4 sm:p-0">
       <Chatbot />
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4"
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4"
       >
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
           Dashboard Overview
         </h1>
         <motion.button
@@ -126,11 +126,11 @@ const Overview = () => {
             boxShadow: "0 10px 25px rgba(59, 130, 246, 0.3)",
           }}
           whileTap={{ scale: 0.95 }}
-          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+          className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 text-sm sm:text-base"
         >
-          <span className="flex items-center gap-2">
+          <span className="flex items-center justify-center gap-2">
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4 sm:w-5 sm:h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -148,7 +148,7 @@ const Overview = () => {
       </motion.div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
         {metrics.map((metric, index) => (
           <motion.div
             key={metric.label}
@@ -166,15 +166,15 @@ const Overview = () => {
               boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
               transition: { duration: 0.2 },
             }}
-            className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 cursor-pointer group"
+            className="bg-gradient-to-br from-white to-gray-50 p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 cursor-pointer group"
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-gray-500 group-hover:text-gray-700 transition-colors">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-500 group-hover:text-gray-700 transition-colors">
                 {metric.label}
               </h3>
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+              <div className="w-6 sm:w-8 h-6 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors">
                 <svg
-                  className="w-4 h-4 text-blue-600"
+                  className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -189,14 +189,14 @@ const Overview = () => {
               </div>
             </div>
             <div className="flex items-baseline justify-between">
-              <p className="text-2xl sm:text-3xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                 {metric.value}
               </p>
               <motion.p
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 + 0.2 }}
-                className={`text-sm font-semibold px-2 py-1 rounded-full ${
+                className={`text-xs sm:text-sm font-semibold px-2 py-1 rounded-full ${
                   metric.isPositive
                     ? "text-green-700 bg-green-100"
                     : "text-red-700 bg-red-100"
@@ -214,13 +214,13 @@ const Overview = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 border border-gray-100"
+        className="bg-gradient-to-br from-white to-gray-50 rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-4 sm:p-6 border border-gray-100"
       >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-2">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2 sm:gap-3">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
               <svg
-                className="w-5 h-5 text-white"
+                className="w-4 h-4 sm:w-5 sm:h-5 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -235,19 +235,17 @@ const Overview = () => {
             </div>
             Recent Activity
           </h2>
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="w-6 h-6 border-2 border-blue-200 border-t-blue-500 rounded-full"
-          />
+          <span className="text-xs sm:text-sm text-gray-500">
+            Total: {testHistory.length} tests
+          </span>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 sm:space-y-4">
           {recentActivity.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="text-center py-12"
+              className="text-center py-8 sm:py-12"
             >
               <motion.div
                 animate={{
@@ -354,7 +352,7 @@ const Overview = () => {
                     x: 5,
                     transition: { duration: 0.2 },
                   }}
-                  className={`flex items-center p-4 sm:p-5 ${colors.bg} rounded-xl hover:shadow-lg transition-all duration-300 cursor-pointer border ${colors.border} group`}
+                  className={`flex items-center p-3 sm:p-4 md:p-5 ${colors.bg} rounded-xl hover:shadow-lg transition-all duration-300 cursor-pointer border ${colors.border} group`}
                 >
                   <motion.div
                     whileHover={{ scale: 1.1, rotate: 5 }}

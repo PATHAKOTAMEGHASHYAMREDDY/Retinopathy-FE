@@ -13,51 +13,54 @@ const validateCloudinaryConfig = () => {
   if (!cloudinaryConfig.apiSecret) missing.push('VITE_CLOUDINARY_API_SECRET');
   
   if (missing.length > 0) {
-    console.error('Missing Cloudinary environment variables:', missing);
-    console.error('Please check your .env file and ensure it contains:');
-    missing.forEach(key => console.error(`${key}=your_value_here`));
-    throw new Error(`Missing Cloudinary configuration: ${missing.join(', ')}`);
+    const error = `Missing Cloudinary environment variables: ${missing.join(', ')}. Please check your .env file.`;
+    console.error(error);
+    throw new Error(error);
   }
   
-  console.log('Cloudinary configuration loaded successfully');
+  return true;
 };
 
 // Upload file to Cloudinary with signed upload (more secure)
-export const uploadToCloudinary = async (file, folder = 'scans') => {
-  // Validate configuration before upload
-  validateCloudinaryConfig();
-  
-  const timestamp = Math.round(new Date().getTime() / 1000);
-  const publicId = `${folder}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
-  
-  // Create signature for secure upload - FIXED: Don't include folder when public_id already has it
-  const crypto = await import('crypto-js');
-  const paramsToSign = {
-    public_id: publicId,
-    timestamp: timestamp
-  };
-  
-  const paramsString = Object.keys(paramsToSign)
-    .sort()
-    .map(key => `${key}=${paramsToSign[key]}`)
-    .join('&');
-  
-  const signature = crypto.SHA1(paramsString + cloudinaryConfig.apiSecret).toString();
-
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('public_id', publicId);
-  formData.append('timestamp', timestamp);
-  formData.append('signature', signature);
-  formData.append('api_key', cloudinaryConfig.apiKey);
-
+export const uploadToCloudinary = async (file, folder = 'retinopathy_images') => {
   try {
-    console.log('Uploading to Cloudinary with config:', {
+    // Validate configuration before upload
+    validateCloudinaryConfig();
+    
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    
+    // Create signature for secure upload
+    const crypto = await import('crypto-js');
+    
+    // Parameters that will be signed - MUST match exactly what we send
+    const paramsToSign = {
+      folder: folder,
+      timestamp: timestamp
+    };
+    
+    // Create string to sign (key=value pairs, sorted alphabetically, joined with &)
+    const sortedParams = Object.keys(paramsToSign)
+      .sort()
+      .map(key => `${key}=${paramsToSign[key]}`)
+      .join('&');
+    
+    // Add API secret at the end
+    const stringToSign = sortedParams + cloudinaryConfig.apiSecret;
+    const signature = crypto.SHA1(stringToSign).toString();
+  
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', folder);
+    formData.append('timestamp', timestamp);
+    formData.append('signature', signature);
+    formData.append('api_key', cloudinaryConfig.apiKey);
+  
+    console.log('Uploading to Cloudinary:', {
       cloudName: cloudinaryConfig.cloudName,
-      publicId: publicId,
+      folder: folder,
       timestamp: timestamp
     });
-
+  
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/image/upload`,
       {
@@ -65,16 +68,15 @@ export const uploadToCloudinary = async (file, folder = 'scans') => {
         body: formData,
       }
     );
-
+  
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Cloudinary error response:', errorData);
-      console.error('Response status:', response.status);
       throw new Error(errorData.error?.message || `Upload failed with status: ${response.status}`);
     }
-
+  
     const data = await response.json();
-    console.log('Image uploaded successfully to Cloudinary:', data.secure_url);
+    console.log('Image uploaded successfully:', data);
     return data;
   } catch (error) {
     console.error('Cloudinary upload error:', error);
