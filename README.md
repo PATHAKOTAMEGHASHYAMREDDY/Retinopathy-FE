@@ -1,84 +1,61 @@
-Below is a complete **README** tailored for the *Retinopathy-FE* project on GitHub — formatted for clarity, technical accuracy, and practical use.
+# Retinopathy Detection Frontend
 
-```markdown
-# Retinopathy-FE
-
-Front-end application for a diabetic retinopathy screening interface.  
-Built using **React** and **Vite**, this project provides a responsive UI to visualize and interact with retinopathy detection tools.
-
-## Overview
-
-Diabetic retinopathy is a common eye condition caused by diabetes that can lead to vision loss if not detected early. Automated tools that process retinal fundus images and classify disease severity are critical components of modern screening workflows. This front-end complements such machine learning systems by offering a user-friendly interface to upload images, view predictions, and interpret results.
+A web-based user interface for a Diabetic Retinopathy (DR) detection system. This frontend facilitates image uploading and displays diagnostic results processed by a deep learning backend.
 
 ## Features
 
-- React + Vite powered UI  
-- Image upload component for retinal fundus scans  
-- Result display area for model predictions  
-- Live deployment link available
+* **Retinal Image Upload**: Interface for submitting fundus photography.
+* **Severity Grading**: Visualizes classification results across five stages (No DR, Mild, Moderate, Severe, Proliferative DR).
+* **Probability Metrics**: Displays confidence scores for the model's predictions.
+* **Responsive Interface**: Built for cross-device compatibility in clinical or research settings.
 
-## Live Demo
+## Technology Stack
 
-Access the deployed front-end here:  
-https://retinopathy-murex.vercel.app
+* **Framework**: React.js
+* **State Management**: React Hooks
+* **HTTP Client**: Axios (for backend API communication)
+* **Styling**: Tailwind CSS / CSS Modules
 
-## Project Structure
+## Installation
 
-```
-
-Retinopathy-FE/
-├─ public/                     # Static assets
-├─ src/
-│   ├─ components/            # React UI components
-│   ├─ styles/                # CSS / styling
-│   ├─ App.jsx                # Main application shell
-│   └─ index.jsx              # Entry point
-├─ .gitignore
-├─ package.json
-├─ vite.config.js
-└─ README.md
-
-````
-
-## Setup
-
-1. Clone repository  
-2. Install dependencies  
-   ```bash
-   npm install
-````
-
-3. Start development server
-
-   ```bash
-   npm run dev
-   ```
-
-## Build
-
-To compile for production:
-
+1. **Clone the repository**:
 ```bash
-npm run build
+git clone https://github.com/PATHAKOTAMEGHASHYAMREDDY/Retinopathy-FE.git
+
 ```
 
-## Deployment
 
-This project is configured for Vercel deployment. Review `vercel.json` for build settings. Continuous deployment can be enabled by linking this repo to a Vercel account.
+2. **Install dependencies**:
+```bash
+cd Retinopathy-FE
+npm install
 
-## Environment
-
-* React
-* Vite
-* JavaScript (ESNext)
-* CSS
-
-## Contributing
-
-Contributions are accepted via pull requests. Ensure code quality and UI consistency with the existing React/Vite setup.
-
-
-
-
-::contentReference[oaicite:0]{index=0}
 ```
+
+
+3. **Configure Environment**:
+Create a `.env` file in the root directory and specify the backend API URL:
+```env
+REACT_APP_API_URL=http://your-backend-api-endpoint
+
+```
+
+
+4. **Run the application**:
+```bash
+npm start
+
+```
+
+
+
+## Workflow
+
+1. User uploads a fundus image through the dashboard.
+2. The frontend sends the image to the linked inference server.
+3. The server processes the image using a Convolutional Neural Network (CNN).
+4. The frontend renders the predicted class and associated probability data.
+
+## License
+
+[MIT](https://choosealicense.com/licenses/mit/)
